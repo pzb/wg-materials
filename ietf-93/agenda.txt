@@ -1,0 +1,16 @@
+ACME WG AGENDA, IETF-93
+
+Meeting Thursday July 23, 2015
+Afternoon Sesssion II: 15:20-17:20
+Chairs: Ted Hardie, Rich Salz
+Responsible AD: Kathleen Moriarty
+
+Agenda bashing                                             5 minutes
+
+Protocol (draft-barnes-acme)                              75 minutes
+
+Use cases (draft-mattson-acme-use-cases)                  15 minutes
+
+JWS Changes (draft-jones-jose-jws-signing-input-options)  15 minutes
+
+OmniPublish (Hallam-Baker)                                10 minutes
