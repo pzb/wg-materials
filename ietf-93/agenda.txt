@@ -13,4 +13,4 @@ Use cases (draft-mattson-acme-use-cases)                  15 minutes
 
 JWS Changes (draft-jones-jose-jws-signing-input-options)  15 minutes
 
-OmniPublish (Hallam-Baker)                                10 minutes
+OmniPublish (draft-hallambaker-omnipublish)               10 minutes
