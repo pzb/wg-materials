@@ -1,0 +1,344 @@
+ACME WG AGENDA, IETF-93
+
+Meeting Thursday July 23, 2015
+Afternoon Sesssion II: 15:20-17:20
+Chairs: Ted Hardie, Rich Salz
+Responsible AD: Kathleen Moriarty
+
+
+Note takers: Joe Hall + Daniel Kahn Gillmor
+
+
+# draft-barnes-acme (Richard Barnes)
+
+RLB discussing changes in -04 draft from Dallas
+(https://tools.ietf.org/html/draft-barnes-acme-04)
+new elements: a directory, and cert-revocation mechanism
+
+new security considerations element: Threat Model
+
+three channels:
+
+ACME channel (client talks to server)
+
+contact channel (server talks to client)
+
+assume trusted channel? (if MiTM, hosed?)
+
+validation channel (server to validation server)
+
+
+Directory service -- points to other URLs for full RESTful interface
+
+Registration
+
+binds metadata about the subscriber to key pairs
+
+added authorizations and certificate field
+
+
+Q (paul van borwowerhasen (globalsign)): as registrar, how do i map this to existing accounts in an 
+existing CA.
+
+Authorization
+
+Challenge/Response mechanism
+
+
+Q (dkg): No indication in this mechanism as to which authority the auth is bound to? A: No, haven't 
+considered that.
+Q (EKR): One CA can get a certificate with your public key issued in your name for another CA (?) A: May 
+be replayed but not in a way that another account would get authorization.
+
+Challenges
+
+intended to prove control over a domain via signed token served over htt p
+
+also want to support DVSNI, DNS, Proof of Possession
+
+
+Q (Ted Hardie): This needs to be robust against guessing, no?
+Otherwise you could have a race condition where someone could stand up a MiTM in that time. A: 
+That's right. Ted: We should consider whether or not putting it in a .well_known is giving us the best 
+security properties for this kind of condiition. A: Yes, and we also need to protect that space from where 
+a non-privileged user can write to.
+
+Q (?): It might be useful to include some ID information in the challenge so that we could identify when 
+the entity that got the challenge answers it?
+
+Q (PHB): i don't like being asked to sign arbitrary data. Would like the scope of the signature to be 
+exactly the scope of the JSON data.
+
+Q (Stephen Farrell): is that an argument that we should have a registered .badly-known as well as .well-
+known? A: hahahaha. Srsly, this is a registration thing, so you don't do it each time.
+
+Current draft has a bunch of challenges.
+
+DVSNI, configure a TLS server that's referenced by an A server
+
+DNS provisioning a record in the DNS.
+
+Proof of Possession: if there's an exisiting cert, might prove that the applicant has the private key for 
+that cert.
+
+
+Q (Ted Hardie): There's already a bit of a risk that the DNS and HTTP controlling parties are slightly 
+disjoint. Point is that there are other parties that could serve to prove... can we create guidance so that 
+these extensibility choices aren't different in a threat sense (?). Does there need to be extensibility 
+advice? A: Establish clear guidelines for establishing new challenge mechanisms, and providing guidance 
+to servers as to which they should support (?) Ted: need to be careful about extensibility. A: underlying 
+assumption that the CA chooses what it is willing to accept. Ted: but since there are many CAs, you can 
+just pick one that does the weak thing.
+
+EKR: The level of assurance in this system is just not that high and we can't make it higher... would an 
+attacker who controls this mechanism be able to forge other challenges (?) as well.
+
+Q (Christian Huitema): We need to be clear about which threat the challenge protects against. DNS 
+admin is clearly privileged in that case; what happens if a miscreant gets control? Need to discuss in the 
+security model. A: this is why I called out the validation/registration channel as a special thing.
+
+Q (Eliot Lear): Maybe we need a registry lock for this kind of case?
+
+Certificates
+
+Current draft goes with PKCS#10 CSR since there is mucho tooling for it out there now, rather than 
+JSON.
+
+the slides are missing a resource member for all the queries, so a given query can't be replayed outside 
+the specific resource (i.e. the recipient can't re-send a new-cert request as a new-authz request.
+
+Support for async cert issuance, sends back a 201 created message, client can poll, server can send a 
+retry-after.
+
+
+Q (PHB): CAs aren't going to suppor that. In most cases the cert can come back immediately, in some 
+cases it may be weeks when you get to EV and other higher cert levels. A: in the 201 created you send a 
+location header which is where you get the cert.
+
+Revocation
+
+Oh crap, need to revoke in some cases.
+
+We had considered a revocation request to the cert URL.
+
+But you may not have it anymore, so we have one location for all ACME certs that you can post signed 
+revocation requests to.
+
+
+Q (Paul VB): Is it possible to include a reason for revoke? A: Yes, haven't gotten to it.
+
+Q (Robin Wilton): under some circumstances, your key has been lost.
+how do you revoke it?
+
+Q Martin Thomson: if you can demonstrate control over the domains, you can request new 
+authorization, in which case you can revoke the cert.
+
+EKR: it's undesirable to allow ppl that have temp control over DNS to issue revokes. Series of escalating 
+procedures here... private key, ... call the CA. This does seem an odd design to post the entire cert to the 
+server... what about a fingerprint? Or post and get a revoke URL?
+richard: i'm open to changes.
+
+Robin Wilton: say my authorized key is on a device.  I've lost the device.  how do i revoke the cert?
+
+Recovery
+
+send an email to someone, essentially
+
+
+Q (John Bradley): Like the work. simple, good, needed. Don't get to worried about critique in 
+authorization... think it just needs some simple tweaks.
+
+Q (): Is this also automated to target EV issuance? A: that's harder.
+We don't have automated ways to check some of those things, business names, ownership. Some of this 
+could be delegated to some of the out-of-band things we expect to need.
+
+Q (Paul VB): As a CA, we wouldn't implement if we can't do OV/EV.
+Trick is that will it work for out-of-band. A: may need an extension for OV/EV
+
+Q (Christian): is there a way to specify who is authorized to request certs? The big threat model is 
+someone manages to get issues a cert for you. Would be great if there were a way to prevent that
+
+Q(PHB): terminology
+
+verify: check signature
+validate: checking domain control.
+
+Q(PHB): it might be nice to have some sort of identifier that can be used to map to support 
+calls/discussions
+A: all JWS signatures are required to carry the full public key.  I agree we need something like that could 
+be read over the phone)
+
+Q (Paul VB (globalsign)): Currently, there are a bunch of ways to specify certificate life times or other 
+properties of certs (not appearing in CT (TRANS) stores)? A: These are definitely things to include in the 
+cert validation method... but that might mean dropping CSRs for JSON and we may need to have that 
+convo.
+
+Q (PHB): Important to integrate CAA into ACME. You could pull CAA record and have a fixed list of ACME 
+CAs.
+
+Q (dkg): in the client response to the server's simpleHttp challenge, the client can reply with "tls": false.  
+if "tls": true, does the server verify certificate?  A: i think the server ignores the cert.
+(dkg): not very comfortable with that.  BTW, speaking to ted's earlier question, the draft does have 
+entropy in the challenge URL.
+
+Q (Ted as chair): should we adopt this document? [Humming] no opposition to humming.
+
+# ACME Use Cases (Mattsson from Ericsson)
+
+Cert mgmt or I2CA
+
+ACME (current barnes draft) is only one part of the infrastructure neede d.
+
+enterprises want to have separation between HTTP servers and cert mgmt infrastructure.
+
+
+How do we achieve this separation? central repo for cert mgmt. or have a session key interface (keyless 
+SSL is an example).
+
+Third option: delegated option, download the CSR, through a policy enforcement point, which can 
+decide if an HTTP server is allowed to get the cert.
+
+Delegated ACME tunnel message flow. (HTTP server sees cert management server as ACME server, cert 
+management server forwards to CA)
+
+
+Q (Martin Thompson): Are you going to get to the challenges and how you would modify those? A: Not 
+really... lifetime would require adding elements. Martin: concerned with how the ACME client would be 
+able to respond to challenges... if the ACME mgmt server is not a DNS server or HTTP server, it will need 
+to be able to communicate with something that can do that which is trusted.
+
+Q (Hannes T.): Can you give background on your use cases? A: when you have a lot of http servers 
+virtualized in a bunch of data centers, you will want a central policy enforcement node. HT: Do we have 
+the right set of people that understand this? A: this is not about that but about centralized control of 
+HTTP servers.
+
+Q (PHB): all of your transactions have the potential to be an asynchronous response. Response for 
+EV/OV may be days.
+
+Q (Ted Hardie, not as chair): Once you're through all the bits, issuing and stuff is not exciting. The way 
+you have this designed is far more complex than it needs to be. Having the cert mgmt server spoofing 
+HTTP requests, etc. is complex and not a bad idea. If the cert. mgmt. server has a way of being delegated 
+to do the challenge, then the http servers don't need to run acme. A: you're talking about my option 1. 
+Ted: what you want is to standardize a proxy that is acting on behalf of an http server.
+
+Q (dkg): Still trying to wrap my head around what's going on here? Is the box in the server stripping the 
+signature from the ACME message?
+So it's sending an entire new CSR with a different ACME request? A: Yes.
+
+Q (Rich Salz not as chair): I see some real uses where this would be handy.  I think it needs more 
+refinement, though.
+
+Q (Martin Thompson): you've failed to establish the motivating reasons as to why you'd want to do this. 
+Because of the way the challenges are designed this doesn't seem like it would work.
+
+# JWS signing without base64url encoding the payload (Mike Jones, MSFT)
+
+draft-jones-jose-jws-signing-input-00
+
+draft defines signing/MACing payloads using JSON-based data structures is url safe, prevents payload 
+modification
+
+detached payloads, for when you want to sign, but not give up the payload (the user knows where to get 
+the payload)
+
+new draft (mentioned above) gives the option to not encode the payload also option to not protect 
+headers, big payloads where you don't want to copy and concat header to payload
+
+Q (dkg): The combination of sph:fals and base64:false is very scary...
+can take a sign and apply to two different things: the object with prepended headers and a blog that 
+looks like a payload... one signature can apply to two payloads, very dangerous. A: John Radley has 
+made the same observation in private, we may pull it.
+
+Q (RLB): I'm not seeing a whole lot of need to use this draft in ACME... mainly useful for signing big-ass 
+things where you don't want to have two copies of that thing. The way the draft works now we don't 
+have big things.
+
+Q (PHB): I think we'll be doing a lot of JSON web services with signatures... I want them to do it all the 
+same way. I don't care (too
+much) how that works.
+
+(I've lost this DKG, too much loud crap in the back of the room and people speaking to quietly)
+
+# OmniPublish (PHB)
+
+We want to get rid of our proprietary automated cert issuance infrastructure.
+I have 64 IP addresses, he should have 64 certs.
+For IoT and the future, we're going to be issuing lotsa certs.
+Establish a Local Registration Authority so that it's not doing just PKI but a lot of trusted stuff.
+[not sure what to write down for notes here]
+
+Differences between barnes and omnipub: low level PKIX vs. High Level
+
+I can take this to another SDO if you don't like it here, for whatever reason.
+OR ACME could be a subset of OmniPublish
+
+Q (Mattsson): [] is work that needs to be done. A: what I want to do is design something that can give 
+the local server what it needs to give network elements the trust elements they need.
+
+(Joe lost network at some point during PHB Q&A)
+
+Q (Ted Hardie, not as chair): this is a higher-level extraction, should sit above the lower-level work that is 
+going on ACME. It may help our vision to see omnipublish as a higher-level abstraction to ACME. A: 
+(something about skiing and slippery slopes.)
+
+Ted as co-chair: don't think it's in our charter to take on ombipublish... it is in scope to take 
+requirements for extending ACME to these use cases.
+
+# github management of ACME work
+
+Have forked the Let's Encrypt repo.
+That's where we'll hold the working copy of the integrated draft
+
+Q (martin thompson): you probably made a mistake and make sure RLB promises to never delete his.
+
+
+
+
+
+
+
+- -------
+end footer so that dkg and jlh can deal with scrolling
+
+
+
+- --
+Joseph Lorenzo Hall
+Chief Technologist
+Center for Democracy & Technology
+1634 I ST NW STE 1100
+Washington DC 20006-4011
+(p) 202-407-8825
+(f) 202-637-0968
+joe@cdt.org
+PGP: https://josephhall.org/gpg-key
+fingerprint: 3CA2 8D7B 9F6D DBD3 4B10  1607 5F86 6987 40A9 A871
+- --
+Joseph Lorenzo Hall
+Chief Technologist
+Center for Democracy & Technology
+1634 I ST NW STE 1100
+Washington DC 20006-4011
+(p) 202-407-8825
+(f) 202-637-0968
+joe@cdt.org
+PGP: https://josephhall.org/gpg-key
+fingerprint: 3CA2 8D7B 9F6D DBD3 4B10  1607 5F86 6987 40A9 A871
+
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIcBAEBCAAGBQJVsQTWAAoJEF+GaYdAqahxUOoP+QEGs2qALln97pWOZS3lrpk/
+DZBRoBDfEb2GXUS3Y/Uh3U4lHWW7OhzMHgLWIGmS2lbo+VEFO04wXV+rLolsp+1J
+qERV1uRvttrwgz+hXRnb6ItA1svAmyzvOch8jPQLE6L8f3K8VEvfwn4SiIX329za
+N8CAtogqL3BGolXjBgRQnZykPLpvn/jCo8tiQ3tQUedVznsfnqScw54inBT9NDe/
+1cRrg7DJGIrBGvTjjXwis59NoS0z1HClGbiYxvDlNLA0qeTJ1osp8ARMW7lOMA83
+NoXh6td0Vu7LAVUkj+QjKthaucnPa3TKOG1BrszbBXR2bGm/eS01ze+BopNYjnLI
+Mg2M3OWhfMI3bdxGaG5/YeVUhbQrZGY/s6oezBe2JhYrlsF5QJOfxwwF7Q3ojk7l
+bvqdlMfSSWLo+zE8Dp/puYQTTXUWCplDeyo1jtGZpg2gASPoXufblGILq48HbNlZ
+Jaov4JoJXnadOT8RCb/X/l4vcacczz88ix11ju9l0SbnIgJAw6kNQtkPDm+2ZX0E
+UZo8CHqtI6ZP65uW2/3B8+u/AtHDTPO/zKLrHO+8GrphenXav2+M1zgfkcMEQXYW
+LVD55+wc7qJm+D+fRHfWL/dygDpUOnGDPYKCzt9KCEwxeC5hVBVZoT+WTuZqZRdZ
+f90mvFl3nlaTEp2WbYI3
+=gFqQ
+-----END PGP SIGNATURE-----
